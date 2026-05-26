@@ -15,8 +15,10 @@ The goal is not to ship an allocator. The goal is to make the observation measur
 
 ```sh
 make test
-make sanitize
 make fuzz
+make valgrind
+make analyze
+make sanitize
 ```
 
 ## Current Result
@@ -26,7 +28,8 @@ The vulnerable allocator fails the security contract in three deterministic ways
 - accepts non-power-of-two alignments that the bit-mask formula is not defined to satisfy
 - permits pointer arithmetic wraparound under hostile state
 - permits size addition wraparound, making an oversized request appear to fit
+- trusts false arena capacity and can hand back a slice that crosses into an `mmap` guard page
 
 The hardened allocator rejects all three cases while preserving normal arena allocation and clear/reset behavior.
 
-See [docs/SPEC.md](docs/SPEC.md) for the complete specification.
+See [docs/SPEC.md](docs/SPEC.md) for the complete specification and [docs/TOOLS.md](docs/TOOLS.md) for the analysis tool matrix.

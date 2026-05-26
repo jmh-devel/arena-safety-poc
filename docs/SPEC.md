@@ -67,6 +67,7 @@ The repo provides:
 - `src/arena_vulnerable.c`: intentionally unsafe reference
 - `src/arena_hardened.c`: defensive allocator
 - `tests/test_arena.c`: deterministic proof tests
+- `tests/test_mmap_guard.c`: page-backed guard tests that prove false capacity can cross into unmapped memory
 - `fuzz/fuzz_arena.c`: lightweight randomized harness for regression hunting
 
 ## Success Criteria
@@ -76,6 +77,7 @@ The repo provides:
 - normal arena behavior works in both versions
 - the vulnerable allocator admits the three bad states
 - the hardened allocator rejects the same states with explicit error codes
+- the guard-page test demonstrates how a false capacity contract can become a real memory fault
 
 `make sanitize` should pass for the deterministic tests on hosts with working AddressSanitizer/UBSan runtime packages.
 
