@@ -44,6 +44,10 @@ ArenaStatus arena_hardened_alloc(Arena *arena, size_t size, size_t alignment, vo
         return ARENA_ERR_NULL;
     }
 
+    if (size == 0U) {
+        return ARENA_ERR_SIZE;
+    }
+
     if (!is_power_of_two(alignment)) {
         return ARENA_ERR_ALIGNMENT;
     }
@@ -69,8 +73,12 @@ ArenaStatus arena_hardened_alloc(Arena *arena, size_t size, size_t alignment, vo
     }
 
     aligned_offset = (size_t)(aligned - base);
-    if (aligned_offset < arena->offset || aligned_offset > arena->capacity) {
+    if (aligned_offset < arena->offset) {
         return ARENA_ERR_STATE;
+    }
+
+    if (aligned_offset > arena->capacity) {
+        return ARENA_ERR_OOM;
     }
 
     if (add_size_overflows(aligned_offset, size, &new_offset)) {
@@ -103,6 +111,8 @@ const char *arena_status_name(ArenaStatus status)
         return "state";
     case ARENA_ERR_SYSTEM:
         return "system";
+    case ARENA_ERR_SIZE:
+        return "size";
     default:
         return "unknown";
     }

@@ -43,9 +43,11 @@ These notes summarize the local ebook review that informed the second pass of th
 ## Remaining Alarming Facets
 
 - Thread safety: the arena is single-threaded. Shared use needs locking, atomics, or per-thread arenas.
-- Zero-size allocation semantics: currently legal, but repeated zero-size allocations can return aliases. Production APIs should document or reject this.
+- Zero-size allocation semantics: repeated zero-size allocations can return aliases. The hardened POC now rejects them to keep success meaningful.
 - Over-alignment policy: very large alignments can waste capacity quickly. Production APIs may cap alignment to page size or a caller-specified maximum.
 - Pointer provenance: integer-to-pointer round trips are useful for testing but deserve caution in production C across non-flat or capability-based architectures.
 - False backing capacity: no allocator can prove a caller-owned buffer's true extent from a pointer alone. Owned mapping helpers or caller-side contracts are required.
 - Confidential data: arena clear only resets the offset. It does not wipe memory; sensitive arenas need explicit zeroization before reuse or unmap.
-
+- Lifetime confusion: arenas are safe only when users group allocations by shared lifetime. Returning scratch-arena memory as persistent data is a user-contract bug, not something a bump allocator can infer.
+- Destructor semantics: raw C arenas do not run destructors or cleanup callbacks. Objects that own file descriptors, heap memory, locks, or other external resources need an explicit release layer above the arena.
+- Reallocation semantics: this POC intentionally has no resize API. If one is added, it must track the previous allocation offset and reject stale or out-of-arena pointers.

@@ -28,6 +28,7 @@ This pattern is only valid if several preconditions are enforced:
 
 - `alignment` is non-zero
 - `alignment` is a power of two
+- `size` is non-zero so successful calls cannot produce repeated aliasing no-op allocations
 - `current + alignment - 1` cannot overflow `uintptr_t`
 - `aligned - base` cannot underflow or exceed the arena capacity
 - `aligned_offset + size` cannot overflow `size_t`
@@ -44,11 +45,12 @@ A safe allocator must:
 2. Store no per-block metadata before returned pointers.
 3. Return pointers aligned to the requested power-of-two alignment.
 4. Reject zero and non-power-of-two alignment.
-5. Reject arithmetic overflow before computing wrapped addresses or offsets.
-6. Reject requests that exceed remaining capacity.
-7. Support `clear` by resetting `offset` to zero without freeing the backing buffer.
-8. Leave the arena in a coherent state after a rejected request.
-9. If the allocator owns an `mmap` region, store the real usable capacity and mapping size together so cleanup and bounds checks use the same source of truth.
+5. Reject zero-size allocations to avoid ambiguous repeated aliases.
+6. Reject arithmetic overflow before computing wrapped addresses or offsets.
+7. Reject requests that exceed remaining capacity, including requests where alignment padding alone exhausts capacity.
+8. Support `clear` by resetting `offset` to zero without freeing the backing buffer.
+9. Leave the arena in a coherent state after a rejected request.
+10. If the allocator owns an `mmap` region, store the real usable capacity and mapping size together so cleanup and bounds checks use the same source of truth.
 
 ## Test Matrix
 
@@ -59,6 +61,9 @@ A safe allocator must:
 | alignment 24 | accepts an unsupported alignment | rejects |
 | `uintptr_t` wrap | returns wrapped pointer | rejects |
 | `size_t` wrap | returns pointer and small offset | rejects |
+| zero-size allocation | returns repeat aliases | rejects |
+| alignment padding exhaustion | may be misclassified | rejects as OOM without mutation |
+| null or corrupted state | undefined contract | rejects without mutation |
 | false mmap capacity | crosses guard page when caller writes returned slice | cannot be solved by arithmetic checks alone |
 | owned mmap capacity | n/a | rejects before guard page |
 | out of memory | rejects | rejects |

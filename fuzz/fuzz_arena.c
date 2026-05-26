@@ -31,24 +31,34 @@ int main(int argc, char **argv)
         void *ptr;
         size_t size = (size_t)(xorshift64(&seed) % 512U);
         size_t alignment = (size_t)(xorshift64(&seed) % 128U);
+        size_t original_offset;
         ArenaStatus status;
 
         arena_init(&arena, storage, sizeof(storage));
         arena.offset = (size_t)(xorshift64(&seed) % sizeof(storage));
+        original_offset = arena.offset;
 
         status = arena_hardened_alloc(&arena, size, alignment, &ptr);
         if (status == ARENA_OK) {
             accepted++;
-            if (ptr == 0 || ((uintptr_t)ptr % alignment) != 0U || arena.offset > arena.capacity) {
+            if (size == 0U ||
+                alignment == 0U ||
+                ptr == 0 ||
+                ((uintptr_t)ptr % alignment) != 0U ||
+                arena.offset <= original_offset ||
+                arena.offset > arena.capacity) {
                 fprintf(stderr, "contract violation at iteration %lu\n", i);
                 return 1;
             }
         } else {
             rejected++;
+            if (ptr != 0 || arena.offset != original_offset) {
+                fprintf(stderr, "reject mutation at iteration %lu\n", i);
+                return 1;
+            }
         }
     }
 
     printf("fuzz complete: accepted=%lu rejected=%lu\n", accepted, rejected);
     return 0;
 }
-

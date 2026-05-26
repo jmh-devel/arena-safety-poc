@@ -17,7 +17,8 @@ typedef enum ArenaStatus {
     ARENA_ERR_OVERFLOW = 3,
     ARENA_ERR_OOM = 4,
     ARENA_ERR_STATE = 5,
-    ARENA_ERR_SYSTEM = 6
+    ARENA_ERR_SYSTEM = 6,
+    ARENA_ERR_SIZE = 7
 } ArenaStatus;
 
 typedef struct ArenaMapping {

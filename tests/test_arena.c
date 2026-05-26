@@ -113,6 +113,74 @@ static void test_out_of_memory(void)
     CHECK(arena.offset == 0U);
 }
 
+static void test_zero_size_is_rejected(void)
+{
+    unsigned char storage[16];
+    Arena arena;
+    void *first;
+    void *second;
+
+    arena_init(&arena, storage, sizeof(storage));
+    CHECK(arena_hardened_alloc(&arena, 0, 8, &first) == ARENA_ERR_SIZE);
+    CHECK(first == 0);
+    CHECK(arena.offset == 0U);
+
+    CHECK(arena_hardened_alloc(&arena, 0, 8, &second) == ARENA_ERR_SIZE);
+    CHECK(second == 0);
+    CHECK(arena.offset == 0U);
+}
+
+static void test_padding_can_exhaust_capacity(void)
+{
+    unsigned char storage[64];
+    Arena arena;
+    void *hardened;
+
+    arena_init(&arena, storage, 8);
+    arena.offset = 1;
+
+    CHECK(arena_hardened_alloc(&arena, 1, 64, &hardened) == ARENA_ERR_OOM);
+    CHECK(hardened == 0);
+    CHECK(arena.offset == 1U);
+}
+
+static void test_bad_arguments_do_not_mutate_state(void)
+{
+    unsigned char storage[16];
+    Arena arena;
+    void *stale = storage;
+
+    arena_init(&arena, storage, sizeof(storage));
+
+    CHECK(arena_hardened_alloc(0, 1, 1, &stale) == ARENA_ERR_NULL);
+    CHECK(stale == 0);
+
+    stale = storage;
+    CHECK(arena_hardened_alloc(&arena, 1, 1, 0) == ARENA_ERR_NULL);
+    CHECK(stale == storage);
+    CHECK(arena.offset == 0U);
+
+    arena_init(&arena, 0, sizeof(storage));
+    stale = storage;
+    CHECK(arena_hardened_alloc(&arena, 1, 1, &stale) == ARENA_ERR_NULL);
+    CHECK(stale == 0);
+    CHECK(arena.offset == 0U);
+}
+
+static void test_corrupted_offset_is_rejected(void)
+{
+    unsigned char storage[16];
+    Arena arena;
+    void *hardened;
+
+    arena_init(&arena, storage, sizeof(storage));
+    arena.offset = sizeof(storage) + 1U;
+
+    CHECK(arena_hardened_alloc(&arena, 1, 1, &hardened) == ARENA_ERR_STATE);
+    CHECK(hardened == 0);
+    CHECK(arena.offset == sizeof(storage) + 1U);
+}
+
 int main(void)
 {
     test_normal_allocation();
@@ -120,6 +188,10 @@ int main(void)
     test_uintptr_wraparound();
     test_size_wraparound();
     test_out_of_memory();
+    test_zero_size_is_rejected();
+    test_padding_can_exhaust_capacity();
+    test_bad_arguments_do_not_mutate_state();
+    test_corrupted_offset_is_rejected();
 
     puts("arena-safety-poc: all tests passed");
     return 0;
