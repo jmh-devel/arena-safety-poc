@@ -51,3 +51,4 @@ These notes summarize the local ebook review that informed the second pass of th
 - Lifetime confusion: arenas are safe only when users group allocations by shared lifetime. Returning scratch-arena memory as persistent data is a user-contract bug, not something a bump allocator can infer.
 - Destructor semantics: raw C arenas do not run destructors or cleanup callbacks. Objects that own file descriptors, heap memory, locks, or other external resources need an explicit release layer above the arena.
 - Reallocation semantics: this POC intentionally has no resize API. If one is added, it must track the previous allocation offset and reject stale or out-of-arena pointers.
+- Heap exploitation lens: metadata-free arena blocks reduce allocator-metadata corruption opportunities, but an overflow inside one arena allocation can still corrupt adjacent application objects. The allocator cannot replace object-level bounds checks.

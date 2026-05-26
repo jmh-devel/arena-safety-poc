@@ -24,6 +24,8 @@ This POC is intentionally small enough to inspect by hand, but allocator bugs de
 | `cppcheck` | Lightweight static checks for portability and defensive C mistakes. |
 | `clang-tidy` | Style and bug-prone pattern checks when a compile database exists. |
 | AFL++ / libFuzzer | Coverage-guided fuzzing if the allocator API expands. |
+| Guard pages | Deterministically catches writes that cross a protected page boundary. |
+| Hardware memory tagging / HWASan | Catches some spatial and temporal defects with different tradeoffs than ASan; useful when available, but not deterministic enough to be the only gate. |
 
 ## Alarming Behaviors To Watch
 
@@ -33,6 +35,7 @@ This POC is intentionally small enough to inspect by hand, but allocator bugs de
 - Arena state corruption where `offset > capacity`.
 - Caller or attacker-controlled false capacity over an `mmap` region.
 - Returned slices crossing into guard pages or unmapped pages.
+- Intra-arena overflows that corrupt adjacent application objects without touching allocator metadata.
 - Zero-size allocation semantics that accidentally create aliasing assumptions.
 - Over-aligned requests larger than the backing page or system-supported alignment.
 - Pointer provenance assumptions hidden by integer-to-pointer round trips.
