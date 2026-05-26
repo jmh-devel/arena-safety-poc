@@ -19,6 +19,7 @@ make fuzz
 make valgrind
 make analyze
 make sanitize
+make demo
 ```
 
 ## Current Result
@@ -31,5 +32,7 @@ The vulnerable allocator fails the security contract in three deterministic ways
 - trusts false arena capacity and can hand back a slice that crosses into an `mmap` guard page, which also proves that bounds checks depend on a truthful backing-memory contract
 
 The hardened allocator rejects the arithmetic and declared-bounds failures while preserving normal arena allocation and clear/reset behavior. The `ArenaMapping` helper demonstrates the safer mmap-backed pattern: own the mapping, record the true usable capacity, and optionally place a guard page after it.
+
+`make all` builds `build/libarena_poc.a` plus `build/arena_demo`, a small consumer binary that links the static library and exercises the hardened mmap-backed allocation path.
 
 See [docs/SPEC.md](docs/SPEC.md) for the complete specification, [docs/TOOLS.md](docs/TOOLS.md) for the analysis tool matrix, and [docs/REVIEW_NOTES.md](docs/REVIEW_NOTES.md) for the local C/systems-book review notes that drove the latest changes.

@@ -19,6 +19,14 @@
 #endif
 #endif
 
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_UNDEFINED__) || __has_feature(address_sanitizer) || __has_feature(undefined_behavior_sanitizer)
+#define ARENA_SANITIZER_BUILD 1
+#endif
+
 #define CHECK(expr) do { \
     if (!(expr)) { \
         fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
@@ -56,7 +64,7 @@ static void *map_guarded(size_t usable_size, size_t *mapped_size)
     return mapping;
 }
 
-static int child_dies_with_signal(void (*fn)(void), int expected_signal)
+static int child_reports_memory_fault(void (*fn)(void), int expected_signal)
 {
     pid_t pid = fork();
     int status;
@@ -68,7 +76,19 @@ static int child_dies_with_signal(void (*fn)(void), int expected_signal)
     }
 
     CHECK(waitpid(pid, &status, 0) == pid);
-    return WIFSIGNALED(status) && WTERMSIG(status) == expected_signal;
+    if (WIFSIGNALED(status) && WTERMSIG(status) == expected_signal) {
+        return 1;
+    }
+
+#ifdef ARENA_SANITIZER_BUILD
+    if (WIFSIGNALED(status) || (WIFEXITED(status) && WEXITSTATUS(status) != 0)) {
+        return 1;
+    }
+#else
+    (void)expected_signal;
+#endif
+
+    return 0;
 }
 
 static void write_through_vulnerable_oversized_slice(void)
@@ -107,8 +127,8 @@ static void write_through_hardened_with_false_capacity(void)
 
 static void test_guard_page_catches_false_capacity(void)
 {
-    CHECK(child_dies_with_signal(write_through_vulnerable_oversized_slice, SIGSEGV));
-    CHECK(child_dies_with_signal(write_through_hardened_with_false_capacity, SIGSEGV));
+    CHECK(child_reports_memory_fault(write_through_vulnerable_oversized_slice, SIGSEGV));
+    CHECK(child_reports_memory_fault(write_through_hardened_with_false_capacity, SIGSEGV));
 }
 
 static void test_hardened_respects_true_capacity(void)
