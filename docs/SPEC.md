@@ -32,6 +32,7 @@ This pattern is only valid if several preconditions are enforced:
 - `aligned - base` cannot underflow or exceed the arena capacity
 - `aligned_offset + size` cannot overflow `size_t`
 - hostile or corrupted arena state is rejected instead of laundered into a valid-looking pointer
+- the declared capacity actually matches the live backing memory region
 
 The counter-hypothesis is that a metadata-free arena is still viable if these checks become part of the allocator contract.
 
@@ -47,6 +48,7 @@ A safe allocator must:
 6. Reject requests that exceed remaining capacity.
 7. Support `clear` by resetting `offset` to zero without freeing the backing buffer.
 8. Leave the arena in a coherent state after a rejected request.
+9. If the allocator owns an `mmap` region, store the real usable capacity and mapping size together so cleanup and bounds checks use the same source of truth.
 
 ## Test Matrix
 
@@ -57,6 +59,8 @@ A safe allocator must:
 | alignment 24 | accepts an unsupported alignment | rejects |
 | `uintptr_t` wrap | returns wrapped pointer | rejects |
 | `size_t` wrap | returns pointer and small offset | rejects |
+| false mmap capacity | crosses guard page when caller writes returned slice | cannot be solved by arithmetic checks alone |
+| owned mmap capacity | n/a | rejects before guard page |
 | out of memory | rejects | rejects |
 
 ## Implementation Plan
@@ -66,6 +70,7 @@ The repo provides:
 - `include/arena.h`: common structs and APIs
 - `src/arena_vulnerable.c`: intentionally unsafe reference
 - `src/arena_hardened.c`: defensive allocator
+- `src/arena_mmap.c`: owned mmap helper with optional guard page and explicit cleanup
 - `tests/test_arena.c`: deterministic proof tests
 - `tests/test_mmap_guard.c`: page-backed guard tests that prove false capacity can cross into unmapped memory
 - `fuzz/fuzz_arena.c`: lightweight randomized harness for regression hunting
@@ -78,6 +83,7 @@ The repo provides:
 - the vulnerable allocator admits the three bad states
 - the hardened allocator rejects the same states with explicit error codes
 - the guard-page test demonstrates how a false capacity contract can become a real memory fault
+- the owned mmap helper keeps mapping lifetime, usable capacity, guard page, and cleanup in one structure
 
 `make sanitize` should pass for the deterministic tests on hosts with working AddressSanitizer/UBSan runtime packages.
 

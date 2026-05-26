@@ -88,25 +88,44 @@ static void write_through_vulnerable_oversized_slice(void)
     (void)munmap(mapping, mapped_size);
 }
 
-static void test_guard_page_catches_false_capacity(void)
-{
-    CHECK(child_dies_with_signal(write_through_vulnerable_oversized_slice, SIGSEGV));
-}
-
-static void test_hardened_respects_true_capacity(void)
+static void write_through_hardened_with_false_capacity(void)
 {
     size_t mapped_size = 0;
     size_t page = page_size();
     unsigned char *mapping = map_guarded(page, &mapped_size);
     Arena arena;
+    unsigned char *ptr = 0;
+
+    arena_init(&arena, mapping, SIZE_MAX);
+    CHECK(arena_hardened_alloc(&arena, page + 1U, 1, (void **)&ptr) == ARENA_OK);
+    CHECK(ptr != 0);
+
+    ptr[page] = 0xA5U;
+
+    (void)munmap(mapping, mapped_size);
+}
+
+static void test_guard_page_catches_false_capacity(void)
+{
+    CHECK(child_dies_with_signal(write_through_vulnerable_oversized_slice, SIGSEGV));
+    CHECK(child_dies_with_signal(write_through_hardened_with_false_capacity, SIGSEGV));
+}
+
+static void test_hardened_respects_true_capacity(void)
+{
+    size_t page = page_size();
+    ArenaMapping mapping;
     void *ptr;
 
-    arena_init(&arena, mapping, page);
-    CHECK(arena_hardened_alloc(&arena, page + 1U, 1, &ptr) == ARENA_ERR_OOM);
-    CHECK(ptr == 0);
-    CHECK(arena.offset == 0U);
+    CHECK(arena_mmap_create(&mapping, page, 1) == ARENA_OK);
+    CHECK(mapping.arena.capacity == page);
 
-    CHECK(munmap(mapping, mapped_size) == 0);
+    CHECK(arena_hardened_alloc(&mapping.arena, page + 1U, 1, &ptr) == ARENA_ERR_OOM);
+    CHECK(ptr == 0);
+    CHECK(mapping.arena.offset == 0U);
+
+    arena_mmap_destroy(&mapping);
+    CHECK(mapping.mapping == 0);
 }
 
 int main(void)

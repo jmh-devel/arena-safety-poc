@@ -35,7 +35,6 @@ ArenaStatus arena_hardened_alloc(Arena *arena, size_t size, size_t alignment, vo
     uintptr_t aligned;
     size_t aligned_offset;
     size_t new_offset;
-    size_t padding;
 
     if (out != 0) {
         *out = 0;
@@ -74,11 +73,6 @@ ArenaStatus arena_hardened_alloc(Arena *arena, size_t size, size_t alignment, vo
         return ARENA_ERR_STATE;
     }
 
-    padding = aligned_offset - arena->offset;
-    if (padding > arena->capacity - arena->offset) {
-        return ARENA_ERR_OOM;
-    }
-
     if (add_size_overflows(aligned_offset, size, &new_offset)) {
         return ARENA_ERR_OVERFLOW;
     }
@@ -107,8 +101,9 @@ const char *arena_status_name(ArenaStatus status)
         return "oom";
     case ARENA_ERR_STATE:
         return "state";
+    case ARENA_ERR_SYSTEM:
+        return "system";
     default:
         return "unknown";
     }
 }
-

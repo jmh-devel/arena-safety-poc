@@ -28,8 +28,8 @@ The vulnerable allocator fails the security contract in three deterministic ways
 - accepts non-power-of-two alignments that the bit-mask formula is not defined to satisfy
 - permits pointer arithmetic wraparound under hostile state
 - permits size addition wraparound, making an oversized request appear to fit
-- trusts false arena capacity and can hand back a slice that crosses into an `mmap` guard page
+- trusts false arena capacity and can hand back a slice that crosses into an `mmap` guard page, which also proves that bounds checks depend on a truthful backing-memory contract
 
-The hardened allocator rejects all three cases while preserving normal arena allocation and clear/reset behavior.
+The hardened allocator rejects the arithmetic and declared-bounds failures while preserving normal arena allocation and clear/reset behavior. The `ArenaMapping` helper demonstrates the safer mmap-backed pattern: own the mapping, record the true usable capacity, and optionally place a guard page after it.
 
-See [docs/SPEC.md](docs/SPEC.md) for the complete specification and [docs/TOOLS.md](docs/TOOLS.md) for the analysis tool matrix.
+See [docs/SPEC.md](docs/SPEC.md) for the complete specification, [docs/TOOLS.md](docs/TOOLS.md) for the analysis tool matrix, and [docs/REVIEW_NOTES.md](docs/REVIEW_NOTES.md) for the local C/systems-book review notes that drove the latest changes.

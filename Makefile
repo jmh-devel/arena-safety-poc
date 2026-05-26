@@ -14,7 +14,7 @@ TEST_BIN := $(BUILD)/test_arena
 FUZZ_BIN := $(BUILD)/fuzz_arena
 MMAP_TEST_BIN := $(BUILD)/test_mmap_guard
 
-SRC := src/arena_vulnerable.c src/arena_hardened.c
+SRC := src/arena_vulnerable.c src/arena_hardened.c src/arena_mmap.c
 OBJ := $(SRC:src/%.c=$(BUILD)/%.o)
 
 .PHONY: all test sanitize fuzz valgrind analyze clean spec
